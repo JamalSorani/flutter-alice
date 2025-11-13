@@ -1,7 +1,7 @@
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:flutter_alice/core/alice_core.dart';
 import 'package:flutter_alice/helper/alice_save_helper.dart';
 import 'package:flutter_alice/model/alice_http_call.dart';
@@ -11,7 +11,6 @@ import 'package:flutter_alice/ui/widget/alice_call_error_widget.dart';
 import 'package:flutter_alice/ui/widget/alice_call_overview_widget.dart';
 import 'package:flutter_alice/ui/widget/alice_call_request_widget.dart';
 import 'package:flutter_alice/ui/widget/alice_call_response_widget.dart';
-import 'package:share_plus/share_plus.dart';
 
 class AliceCallDetailsScreen extends StatefulWidget {
   final AliceHttpCall call;
@@ -71,13 +70,26 @@ class _AliceCallDetailsScreenState extends State<AliceCallDetailsScreen>
           ),
           key: Key('share_key'),
           onPressed: () async {
-            await Clipboard.setData(
-              ClipboardData(text: await _getSharableResponseString()),
-            );
-            Share.share(
-              await _getSharableResponseString(),
-              subject: 'Request Details',
-            );
+            final setting = widget.core.shareSetting;
+            if (setting == AliceShareSetting.curl) {
+              final curl = widget.call.getCurlCommand();
+              await SharePlus.instance.share(
+                ShareParams(
+                  text: curl,
+                  subject: 'Request cURL',
+                ),
+              );
+            } else if (setting == AliceShareSetting.fullDetails) {
+              final content = await _getSharableResponseString();
+              await SharePlus.instance.share(
+                ShareParams(
+                  text: content,
+                  subject: 'Request Details',
+                ),
+              );
+            } else {
+              await _showShareOptions(context);
+            }
           },
           child: Icon(Icons.share, color: Colors.white),
         ),
@@ -102,6 +114,49 @@ class _AliceCallDetailsScreenState extends State<AliceCallDetailsScreen>
   Future<String> _getSharableResponseString() async {
     log(widget.call.getCurlCommand(), name: 'CURL');
     return AliceSaveHelper.buildCallLog(widget.call);
+  }
+
+  Future<void> _showShareOptions(BuildContext context) async {
+    final selection = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: Icon(Icons.terminal),
+                title: Text('Share cURL'),
+                onTap: () => Navigator.of(ctx).pop('curl'),
+              ),
+              ListTile(
+                leading: Icon(Icons.description),
+                title: Text('Share full details'),
+                onTap: () => Navigator.of(ctx).pop('full'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (selection == 'curl') {
+      final curl = widget.call.getCurlCommand();
+      await SharePlus.instance.share(
+        ShareParams(
+          text: curl,
+          subject: 'Request cURL',
+        ),
+      );
+    } else if (selection == 'full') {
+      final content = await _getSharableResponseString();
+      await SharePlus.instance.share(
+        ShareParams(
+          text: content,
+          subject: 'Request Details',
+        ),
+      );
+    }
   }
 
   List<Widget> _getTabBars() {

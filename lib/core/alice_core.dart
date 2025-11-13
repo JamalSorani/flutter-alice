@@ -9,6 +9,8 @@ import 'package:flutter_alice/ui/page/alice_calls_list_screen.dart';
 import 'package:overlay_support/overlay_support.dart';
 import 'package:rxdart/rxdart.dart';
 
+enum AliceShareSetting { curl, fullDetails, both }
+
 class AliceCore {
   /// Should user be notified with notification if there's new request catched
   /// by Alice
@@ -28,6 +30,9 @@ class AliceCore {
   /// Icon url for notification
   final String notificationIcon;
 
+  /// Share behavior setting
+  final AliceShareSetting shareSetting;
+
   GlobalKey<NavigatorState>? _navigatorKey;
   Brightness _brightness = Brightness.light;
   bool _isInspectorOpened = false;
@@ -44,6 +49,7 @@ class AliceCore {
     showInspectorOnShake,
     darkTheme,
     notificationIcon,
+    AliceShareSetting shareSetting,
   ) {
     _singleton ??= AliceCore._(
       _navigatorKey,
@@ -51,6 +57,7 @@ class AliceCore {
       showInspectorOnShake,
       darkTheme,
       notificationIcon,
+      shareSetting,
     );
     return _singleton!;
   }
@@ -62,6 +69,7 @@ class AliceCore {
     this.showInspectorOnShake,
     this.darkTheme,
     this.notificationIcon,
+    this.shareSetting,
   ) {
     if (showNotification) {
       _callsSubscription = callsSubject.listen((_) => _onCallsChanged());

@@ -29,57 +29,62 @@ class AliceHttpCall {
   }
 
   String getCurlCommand() {
-    var compressed = false;
-    var curlCmd = "curl";
-    curlCmd += " -X " + method;
-    var headers = request!.headers;
-    headers..remove('content-length');
+    bool compressed = false;
+    final List<String> lines = [];
+    lines.add('curl \\');
+    lines.add('  -X $method \\');
+    final headers = Map<String, dynamic>.from(request?.headers ?? {});
+    headers.remove('content-length');
     headers.forEach((key, value) {
-      if ("Accept-Encoding" == key && "gzip" == value) {
+      if (key.toLowerCase() == 'accept-encoding' && value == 'gzip') {
         compressed = true;
       }
-      curlCmd += " -H \'$key: $value\'";
+      lines.add("  -H '${key}: ${value}' \\");
     });
-
-    if (request?.body != null && request?.body != '') {
-      String? requestBody = jsonEncode(request?.body);
-      // try to keep to a single line and use a subshell to preserve any line breaks
-      curlCmd += " --data \$'" + requestBody.replaceAll("\n", "\\n") + "'";
-    }
-
-    if (request?.formDataFields != null) {
-      var formDataFields = request?.formDataFields;
-      if (formDataFields != null && formDataFields.isNotEmpty) {
-        formDataFields.forEach((field) {
-          curlCmd += " --form \'${field.name}=${field.value}\'";
-        });
+    if (request?.body != null && request!.body.toString().isNotEmpty) {
+      try {
+        final requestBody = jsonEncode(request?.body);
+        final escaped = requestBody
+            .replaceAll('\\', r'\\')
+            .replaceAll('"', r'\"')
+            .replaceAll('\n', r'\n');
+        lines.add('  --data "$escaped" \\');
+      } catch (_) {
+        final escaped = request!.body
+            .toString()
+            .replaceAll('\\', r'\\')
+            .replaceAll('"', r'\"')
+            .replaceAll('\n', r'\n');
+        lines.add('  --data "$escaped" \\');
       }
     }
-
-    if (request?.formDataFiles != null) {
-      var formDataFiles = request?.formDataFiles;
-      if (formDataFiles != null && formDataFiles.isNotEmpty) {
-        formDataFiles.forEach((field) {
-          curlCmd += " --form \'${field.fileName}=@${field.fileName}\'";
-        });
+    final formDataFields = request?.formDataFields;
+    if (formDataFields != null && formDataFields.isNotEmpty) {
+      for (final field in formDataFields) {
+        lines.add("  --form '${field.name}=${field.value}' \\");
       }
     }
-
+    final formDataFiles = request?.formDataFiles;
+    if (formDataFiles != null && formDataFiles.isNotEmpty) {
+      for (final file in formDataFiles) {
+        lines.add("  --form '${file.fileName}=@${file.fileName}' \\");
+      }
+    }
     String query = '';
-    if (request?.queryParameters != null) {
-      var queryParams = request?.queryParameters;
-      if (queryParams != null && queryParams.isNotEmpty) {
-        query += "?";
-        query += queryParams.entries
-            .map((e) =>
-                '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
-            .join('&');
-      }
+    if (request?.queryParameters != null &&
+        request!.queryParameters.isNotEmpty) {
+      final queryParams = request!.queryParameters;
+      query = '?' +
+          queryParams.entries
+              .map((e) =>
+                  '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value.toString())}')
+              .join('&');
     }
-
-    curlCmd += ((compressed) ? " --compressed " : " ") +
-        "\'${secure ? 'https://' : 'http://'}$server$endpoint$query\'";
-
-    return curlCmd;
+    if (compressed) {
+      lines.add('  --compressed \\');
+    }
+    final url = "${secure ? 'https' : 'http'}://$server$endpoint$query";
+    lines.add('  "$url"');
+    return lines.join('\n');
   }
 }
