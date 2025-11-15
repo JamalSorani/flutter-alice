@@ -142,19 +142,15 @@ class _AliceCallDetailsScreenState extends State<AliceCallDetailsScreen>
 
     if (selection == 'curl') {
       final curl = widget.call.getCurlCommand();
-      await SharePlus.instance.share(
-        ShareParams(
-          text: curl,
-          subject: 'Request cURL',
-        ),
+      await Share.share(
+        curl,
+        subject: 'Request cURL',
       );
     } else if (selection == 'full') {
       final content = await _getSharableResponseString();
-      await SharePlus.instance.share(
-        ShareParams(
-          text: content,
-          subject: 'Request Details',
-        ),
+      await Share.share(
+        content,
+        subject: 'Request Details',
       );
     }
   }
